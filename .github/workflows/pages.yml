@@ -3,7 +3,8 @@ name: Deploy WeatherX to GitHub Pages
 on:
   push:
     branches:
-      - arena/da70e721-weatherx
+      - main
+      - 'arena/**'
   workflow_dispatch:
 
 permissions:
