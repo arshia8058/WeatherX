@@ -90,4 +90,13 @@ jobs:
           profile: pixel_2
           disable-animations: true
           working-directory: android
-          script: ./gradlew --no-daemon connectedDebugAndroidTest
+          script: |
+            set +e
+            ./gradlew --no-daemon connectedDebugAndroidTest > "$RUNNER_TEMP/emulator-test.log" 2>&1
+            result=$?
+            if [ "$result" -ne 0 ]; then
+              summary=$(tail -n 55 "$RUNNER_TEMP/emulator-test.log" | sed 's/%/%25/g; s/\r/%0D/g' | tr '\n' ' ')
+              echo "::error title=Android emulator test failure::$summary"
+              exit "$result"
+            fi
+            tail -n 20 "$RUNNER_TEMP/emulator-test.log"
