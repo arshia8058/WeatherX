@@ -1,55 +1,161 @@
-# WeatherX
+<h1 align="center">WeatherX</h1>
 
-WeatherX is a bilingual (English / فارسی), responsive weather dashboard built with vanilla HTML, CSS, and JavaScript. It uses Open-Meteo's free Forecast, Geocoding, and Air Quality APIs directly; no API key or application server is required. The same web app can run on GitHub Pages and inside a native Android WebView app built with Capacitor.
+<p align="center"><strong>Weather dashboards for the web and native Android.</strong></p>
 
-## Run locally
+<p align="center">
+  <img src="./assets/weatherx-icon.svg" alt="WeatherX sun-and-cloud icon" width="144">
+</p>
+
+<p align="center">
+  <a href="https://arshia8058.github.io/WeatherX/">Open the web app</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/arshia8058/WeatherX">GitHub repository</a>
+</p>
+
+## Downloads
+
+### Web
+
+Use WeatherX in a browser: **[Open the live web app](https://arshia8058.github.io/WeatherX/)**. No account or API key is required.
+
+### Native Android
+
+WeatherX for Android is being rebuilt as an independent Kotlin and Jetpack Compose app. A new native APK will be linked here after its Android build and emulator checks pass. **The existing `v1.0.0-android.1` preview is the retired WebView app; it is not the native Android app and should not be installed as the native release.**
+
+## About WeatherX
+
+The web app provides current weather and forecasts by city, in English and Persian (RTL). The Android app is a separate native client: it requests weather data directly from Open-Meteo and does not load the website inside a WebView. The existing HTML, CSS, and JavaScript web app remains independently buildable and deployable to GitHub Pages.
+
+## Web app features
+
+- Current conditions, temperature, feels-like temperature, and daily high/low.
+- Hourly forecast with a temperature chart, conditions, rain probability, and wind.
+- Seven-day forecast, city autocomplete, saved favorites, and optional browser geolocation.
+- Humidity, precipitation, visibility, pressure, UV, sunrise/sunset, daylight visualization, and optional air quality.
+- English and Persian interfaces, responsive layout, light/dark themes, Celsius/Fahrenheit, and selectable wind units.
+- Automatic and manual refresh, local preferences, and offline weather cache.
+
+## Native Android features
+
+The native project is organized into Kotlin domain models and repository interfaces, Retrofit/Open-Meteo services, a Room cache and favorites database, DataStore settings, a location provider with runtime permissions, a ViewModel, and Jetpack Compose/Material 3 screens. It includes current conditions, hourly and seven-day forecasts, city search, favorites, optional device location, weather details and chart, air quality, English/Persian RTL, theme and unit choices, periodic foreground refresh, and offline cached-weather fallback.
+
+Native build, lint, and emulator checks are configured in GitHub Actions. Do not treat an APK as a verified native release until those checks have succeeded and it is attached in the Android download section above.
+
+## Technologies and data
+
+- **Web:** HTML, CSS, JavaScript ES modules, and esbuild.
+- **Android:** Kotlin, Jetpack Compose, Material 3, MVVM, Coroutines, Retrofit/OkHttp, Room, and DataStore.
+- **Weather services:** Open-Meteo Forecast, Geocoding, and Air Quality APIs, called directly by each client.
+- **Web deployment:** GitHub Pages.
+
+The small Capacitor geolocation dependency is used by the web asset bundle only; it is not part of the Android application. The Android project contains no website WebView or Capacitor runtime.
+
+| Service | Use | Documentation |
+| --- | --- | --- |
+| Forecast API | Current, hourly and daily weather, sunrise/sunset | [Open-Meteo Forecast API](https://open-meteo.com/en/docs) |
+| Geocoding API | City search suggestions | [Open-Meteo Geocoding API](https://open-meteo.com/en/docs/geocoding-api) |
+| Air Quality API | US AQI, PM2.5, PM10, ozone | [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api) |
+
+Weather remains usable when the optional air-quality request is unavailable. Internet access is needed to fetch new data; the Android app can display its locally cached forecast when refresh fails.
+
+## Installation and development
+
+### Web app
+
+Requirements: Node.js 20 or newer and npm.
 
 ```bash
+git clone https://github.com/arshia8058/WeatherX.git
+cd WeatherX
 npm ci
 npm run build:web
 python3 -m http.server 8080 --directory www
 ```
 
-Open <http://localhost:8080>. Stop the server with `Ctrl+C`. Build the web assets first so the Capacitor geolocation bridge is present. The source app uses relative URLs and can also be served from the repository root during web-only development.
+Open <http://localhost:8080>. Serve the files over HTTP rather than opening `index.html` directly; JavaScript modules and optional geolocation require a local web server. Run the web test suite with `npm test`.
 
-## Features
+### Native Android
 
-- Current conditions and 24-hour / 7-day forecasts, a temperature trend chart, wind details, and a live solar arc; the page greeting adapts to local daylight, including polar-day/night flags.
-- Keyboard-accessible city autocomplete with cancellable requests, popular-city shortcuts, and saved favorites.
-- English and Persian (RTL) interface with bundled Vazirmatn Arabic-script fonts, isolated mixed-direction labels, Light and Dark themes, Celsius/Fahrenheit, and km/h, m/s, or mph wind units.
-- Optional geolocation, share action, 10-minute automatic refresh, and visible last-update time.
-- Ten-minute weather cache with an explicit stale-data notice when a refresh cannot reach the API; recent searches and air-quality readings are cached in memory. Geolocation forecasts are memory-only unless the user explicitly saves that location as a favorite.
-- Optional US AQI plus PM2.5, PM10, and ozone from Open-Meteo Air Quality, aligned to the forecast hour and labeled with its reading time. If that endpoint is unavailable, the rest of the weather dashboard continues to work.
-- Validated API payloads, request timeouts, HTTP/network error states, and accessible loading, empty, and error states.
-
-## Android APKs
-
-The Capacitor Android wrapper packages the web assets locally, so the interface itself launches without downloading the site. Weather and air-quality data still require internet access. Device location is optional and requested only after the user taps the location button.
-
-Build both APK variants locally with Node.js 22+, JDK 21, and Android SDK Platform 36 installed:
+Requirements: JDK 21, Android SDK Platform 36, and Android SDK Build Tools 36.0.0. No npm sync or website bundle is used to build the Android app.
 
 ```bash
-npm ci
-npm run android:debug
+cd android
+./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
-The outputs are:
-
-- `android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` — smaller APK for 64-bit ARM Android devices.
-- `android/app/build/outputs/apk/debug/app-universal-debug.apk` — one APK for ARM and x86 Android devices; larger because it includes multiple ABIs.
-
-These are debug-signed APKs for testing and direct installation, not Play Store release packages. The `Build WeatherX Android APKs` GitHub Actions workflow also uploads both APKs as a downloadable artifact when manually run or when a pull request targets `main`. The `Publish WeatherX Android preview release` workflow publishes a GitHub prerelease; changing `android-release-version.txt` through a PR to `main` triggers the next tagged preview. The application id is `com.arshia8058.weatherx`.
-
-## Tests
-
-With Node.js 20 or newer, run:
+The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk` (relative to the repository root). To run the Compose launch test, start an Android emulator and use:
 
 ```bash
-npm test
+cd android
+./gradlew connectedDebugAndroidTest
 ```
 
-Tests use Node's built-in test runner and mocked API responses to cover request construction, bounded cache/offline fallback, timestamp and range validation, cancellation, zero coordinates, forecast-hour air-quality alignment, translation parity, and unit conversion. The bundled Vazirmatn font files are licensed under SIL OFL 1.1; see `assets/fonts/OFL.txt`.
+Debug builds are signed with the standard debug key for development and direct testing; they are not Play Store production builds. The app supports Android 8.0 (API 26) and newer.
+
+## Project structure
+
+```text
+.
+├── .github/workflows/
+│   ├── android-apks.yml       # Native Android build, unit/lint, and emulator CI
+│   ├── android-release.yml    # Manually publishes a tested native preview APK
+│   └── pages.yml              # Web tests, build, and GitHub Pages deployment
+├── android/
+│   ├── app/src/main/          # Kotlin app, Compose UI, manifest, and resources
+│   ├── app/src/test/          # Native mapper unit tests
+│   ├── app/src/androidTest/   # Android emulator launch test
+│   ├── gradlew
+│   └── settings.gradle
+├── assets/                    # Web icons, fonts, and images
+├── css/style.css              # Web styles, themes, responsive layout, RTL
+├── index.html                 # Web application
+├── js/                         # Web API client, state, translation, and rendering
+├── native/geolocation-bridge.js # Optional web geolocation bridge
+├── scripts/build-web.mjs      # Builds static web assets in www/
+├── tests/                     # Web test suite
+├── android-release-version.txt
+├── package.json
+└── package-lock.json
+```
 
 ## Deployment
 
-The static asset paths are relative, so the app works at the project Pages path <https://arshia8058.github.io/WeatherX/>. GitHub Actions builds the web assets and deploys the site when `main` is updated. Forecast data requires an internet connection to Open-Meteo; the last cached forecast can be shown during a network interruption.
+The web app is deployed by `.github/workflows/pages.yml`. On updates to `main` (or a manual run), GitHub Actions installs npm dependencies, runs `npm test`, builds `www/`, and deploys those static assets. The Android CI and release workflows build the native Gradle project independently.
+
+## Privacy
+
+- Browser and Android geolocation are optional and requested only when the user selects the location control. Android asks for runtime location permission.
+- Coordinates are sent to Open-Meteo to obtain the requested forecast; WeatherX does not operate an account system or weather server.
+- Web preferences, favorites, and cache use browser storage. Android preferences use DataStore; weather cache and favorites use Room. The selected city, including a chosen device location, is saved locally.
+
+## Roadmap
+
+- Attach genuine web and Android screenshots.
+- Prepare a keystore-backed signed Android production release if signing credentials are configured.
+- Evaluate severe-weather alerts and their data source.
+
+## Contributing
+
+Bug reports, documentation improvements, and code contributions are welcome. Please open an issue before larger changes.
+
+1. Fork the repository and create a focused branch.
+2. Install web dependencies with `npm ci`.
+3. Run `npm test`; for web asset changes, also run `npm run build:web`.
+4. For Android changes, run the Gradle unit/lint/build checks and emulator tests when available.
+5. Open a pull request describing the change and checks performed.
+
+Do not commit generated `www/` or Android build output.
+
+## License
+
+There is currently no root-level `LICENSE` file, so the project has no specified project-wide open-source license. The bundled Vazirmatn font files have their own SIL Open Font License 1.1 notice at [`assets/fonts/OFL.txt`](./assets/fonts/OFL.txt); that font license does not license the rest of the project.
+
+---
+
+<p align="center">
+  <strong>WeatherX</strong>
+  &nbsp;·&nbsp;
+  <a href="https://arshia8058.github.io/WeatherX/">Web app</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/arshia8058/WeatherX">GitHub repository</a>
+</p>

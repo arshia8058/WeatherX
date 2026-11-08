@@ -1,15 +1,10 @@
-name: Publish WeatherX Android preview release
+name: Publish WeatherX native Android preview
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - android-release-version.txt
   workflow_dispatch:
     inputs:
       tag:
-        description: Optional Git tag; leave empty to use android-release-version.txt
+        description: Optional release tag; defaults to android-release-version.txt
         required: false
         type: string
 
@@ -17,46 +12,44 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  test-and-release:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out source
         uses: actions/checkout@v7
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - name: Set up Java
+      - name: Set up JDK 21
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
+          cache-dependency-path: android/**/*.gradle*
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
-      - name: Install dependencies
-        run: npm ci
-      - name: Run tests
-        run: npm test
-      - name: Sync Capacitor Android project
-        run: npm run cap:sync
-      - name: Build APK variants
-        working-directory: android
-        run: ./gradlew --no-daemon assembleDebug
-      - name: Prepare release assets and notes
+      - name: Run Android unit, lint, emulator install and launch tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          working-directory: android
+          script: ./gradlew --no-daemon testDebugUnitTest lintDebug connectedDebugAndroidTest assembleDebug
+      - name: Prepare APK and release notes
         run: |
           mkdir -p release-assets
-          cp android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk release-assets/WeatherX-arm64-v8a-debug.apk
-          cp android/app/build/outputs/apk/debug/app-universal-debug.apk release-assets/WeatherX-universal-debug.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk release-assets/WeatherX-Android-1.1.0-debug.apk
           cat > release-notes.md <<'EOF'
-          WeatherX Android preview. Both packages are debug-signed and intended for testing and direct installation; they are not Play Store release builds.
+          WeatherX Native Android preview. This is the Kotlin and Jetpack Compose application; it does not embed or load the WeatherX website.
 
-          - `WeatherX-arm64-v8a-debug.apk`: smaller package for 64-bit ARM devices.
-          - `WeatherX-universal-debug.apk`: package for ARM and x86 Android devices, including 32-bit ARM support.
-
-          Minimum supported Android version: Android 7.0 (API 24). Weather and air-quality data require an internet connection; location permission is requested only when the user taps the location button.
+          - Application ID: `com.arshia8058.weatherx`
+          - Version: `1.1.0` (version code `2`)
+          - Minimum Android: 8.0 (API 26)
+          - The APK is debug-signed for direct installation and testing. It is not a Play Store production build.
+          - Weather and air-quality information is requested directly from Open-Meteo. Location is optional and requires user permission.
           EOF
       - name: Select and validate release tag
         id: release
@@ -69,12 +62,17 @@ jobs:
             TAG="$(< android-release-version.txt)"
           fi
           if [[ ! "$TAG" =~ ^v[0-9]+[.][0-9]+[.][0-9]+-android[.][0-9]+$ ]]; then
-            echo "Expected a tag such as v1.0.0-android.1; got: $TAG" >&2
+            echo "Expected a tag such as v1.1.0-android.1; got: $TAG" >&2
             exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-      - name: Publish GitHub prerelease
+      - name: Publish tested native APK
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        run: gh release create "$RELEASE_TAG" release-assets/*.apk --target "$GITHUB_SHA" --title "WeatherX Android $RELEASE_TAG" --notes-file release-notes.md --prerelease
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" release-assets/*.apk --target "$GITHUB_SHA" --title "WeatherX Android $RELEASE_TAG" --notes-file release-notes.md --prerelease
