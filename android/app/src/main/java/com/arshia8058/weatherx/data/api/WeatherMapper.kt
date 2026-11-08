@@ -6,6 +6,8 @@ import com.arshia8058.weatherx.domain.CurrentWeather
 import com.arshia8058.weatherx.domain.DailyForecast
 import com.arshia8058.weatherx.domain.HourlyForecast
 import com.arshia8058.weatherx.domain.WeatherSnapshot
+import com.arshia8058.weatherx.domain.asDirection
+import com.arshia8058.weatherx.domain.asPercent
 
 internal fun ForecastDto.toDomain(): WeatherSnapshot {
     val now = current ?: error("Forecast response is missing current conditions")
