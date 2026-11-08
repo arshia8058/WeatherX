@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f7fb">
+  <meta name="description" content="WeatherX — thoughtful, real-time weather forecasts powered by Open-Meteo.">
+  <title>WeatherX — Weather, in focus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="WeatherX home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16 3.5v4M16 24.5v4M3.5 16h4m17 0h4M7.15 7.15l2.83 2.83m12.04 12.04 2.83 2.83m0-17.7-2.83 2.83M9.98 22.02l-2.83 2.83"/><circle cx="16" cy="16" r="6.1"/></svg></span>
+        <span class="brand-name">weather<span>x</span></span>
+      </a>
+      <div class="topbar-right">
+        <span class="live-status"><i></i><span data-i18n="live">LIVE WEATHER</span></span>
+        <button class="icon-button location-button" id="location-button" type="button" aria-label="Use my location" title="Use my location"><svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></button>
+        <button class="pill-button language-button" id="language-button" type="button" aria-label="Change language">فارسی</button>
+        <button class="unit-switch" id="unit-button" type="button" aria-label="Change temperature unit"><span class="unit-option active" data-unit="c">°C</span><span class="unit-divider">|</span><span class="unit-option" data-unit="f">°F</span></button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="intro-row">
+        <div>
+          <p class="eyebrow" data-i18n="eyebrow">YOUR WEATHER, BEAUTIFULLY CLEAR</p>
+          <h1 data-i18n="heading">A little more sunshine<br class="desktop-break"> in your day.</h1>
+        </div>
+        <form id="search-form" class="search-wrap" role="search" autocomplete="off">
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.3 4.3"/></svg>
+          <input id="city-search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Search a city..." aria-label="Search a city">
+          <kbd>↵</kbd>
+          <div class="search-results" id="search-results" role="listbox" aria-label="City search results" hidden></div>
+        </form>
+      </section>
+
+      <div class="notice" id="notice" role="status" hidden></div>
+      <div class="loading-banner" id="loading" aria-live="polite" hidden><span class="spinner"></span><span data-i18n="loading">Finding your forecast...</span></div>
+
+      <section class="dashboard" id="dashboard" aria-live="polite">
+        <div class="primary-grid">
+          <article class="hero-card card" id="hero-card">
+            <div class="hero-topline">
+              <div class="place-lockup"><span class="place-pin"><svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></span><div><h2 id="city-name">Stockholm</h2><p id="city-region">Sweden</p></div></div>
+              <button class="icon-button refresh-button" id="refresh-button" type="button" aria-label="Refresh forecast" title="Refresh"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.7 9a7 7 0 0 1 11.8-2L20 12M4 12l2.5 5a7 7 0 0 0 11.8-2"/></svg></button>
+            </div>
+            <div class="hero-main">
+              <div class="temperature-block"><div class="temperature" id="current-temp">—<span>°</span></div><div class="condition" id="current-condition">—</div><div class="feels-like" id="feels-like">—</div></div>
+              <div class="hero-weather-icon" id="hero-icon" aria-hidden="true"></div>
+            </div>
+            <div class="hero-bottom">
+              <div class="date-lockup"><span class="date-dot"></span><span id="local-date">—</span><span class="date-separator">·</span><strong id="local-time">—</strong></div>
+              <div class="high-low"><span><i class="temp-arrow up">↑</i><span data-i18n="high">High</span> <b id="high-temp">—</b></span><span><i class="temp-arrow down">↓</i><span data-i18n="low">Low</span> <b id="low-temp">—</b></span></div>
+            </div>
+          </article>
+
+          <article class="air-card card">
+            <div class="section-title"><div><p class="eyebrow" data-i18n="rightNow">RIGHT NOW</p><h2 data-i18n="atAGlance">At a glance</h2></div><span class="soft-icon">✳</span></div>
+            <div class="metrics-grid" id="metrics-grid">
+              <div class="metric"><span class="metric-icon blue"><svg viewBox="0 0 24 24"><path d="M12 3.5s6.5 7.1 6.5 11.3a6.5 6.5 0 0 1-13 0C5.5 10.6 12 3.5 12 3.5Z"/><path d="M9 15.5a3 3 0 0 0 3 3"/></svg></span><div><span class="metric-label" data-i18n="humidity">Humidity</span><strong id="metric-humidity">—</strong></div></div>
+              <div class="metric"><span class="metric-icon teal"><svg viewBox="0 0 24 24"><path d="M3 8h12.5a2.5 2.5 0 1 0-2.3-3.5M3 12h16a2 2 0 1 1-1.8 3M3 16h9a2 2 0 1 1-1.8 3"/></svg></span><div><span class="metric-label" data-i18n="wind">Wind speed</span><strong id="metric-wind">—</strong></div></div>
+              <div class="metric"><span class="metric-icon violet"><svg viewBox="0 0 24 24"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="m12 3 2 2m-2-2-2 2m2 16 2-2m-2 2-2-2"/></svg></span><div><span class="metric-label" data-i18n="windDirection">Wind direction</span><strong id="metric-direction">—</strong></div></div>
+              <div class="metric"><span class="metric-icon amber"><svg viewBox="0 0 24 24"><path d="M3.5 10.5 12 4l8.5 6.5M5.5 9.5v10h13v-10M9 19.5v-6h6v6"/></svg></span><div><span class="metric-label" data-i18n="pressure">Pressure</span><strong id="metric-pressure">—</strong></div></div>
+              <div class="metric"><span class="metric-icon blue"><svg viewBox="0 0 24 24"><path d="M12 3.5s6.5 7.1 6.5 11.3a6.5 6.5 0 0 1-13 0C5.5 10.6 12 3.5 12 3.5Z"/><path d="M9 15.5a3 3 0 0 0 3 3"/></svg></span><div><span class="metric-label" data-i18n="precipitation">Precipitation</span><strong id="metric-precipitation">—</strong></div></div>
+              <div class="metric"><span class="metric-icon rose"><svg viewBox="0 0 24 24"><path d="M12 3.5s6.5 7.1 6.5 11.3a6.5 6.5 0 0 1-13 0C5.5 10.6 12 3.5 12 3.5Z"/><path d="M9 15.5a3 3 0 0 0 3 3"/></svg></span><div><span class="metric-label" data-i18n="rainChance">Rain chance</span><strong id="metric-rain">—</strong></div></div>
+              <div class="metric"><span class="metric-icon amber"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><div><span class="metric-label" data-i18n="uvIndex">UV index</span><strong id="metric-uv">—</strong></div></div>
+              <div class="metric"><span class="metric-icon teal"><svg viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></span><div><span class="metric-label" data-i18n="visibility">Visibility</span><strong id="metric-visibility">—</strong></div></div>
+            </div>
+          </article>
+        </div>
+
+        <section class="forecast-section card" aria-labelledby="hourly-title">
+          <div class="section-title forecast-heading"><div><p class="eyebrow" data-i18n="nextUp">THE DAY AHEAD</p><h2 id="hourly-title" data-i18n="hourlyForecast">Hourly forecast</h2></div><span class="section-aside" data-i18n="next24">NEXT 24 HOURS</span></div>
+          <div class="hourly-strip" id="hourly-strip"></div>
+        </section>
+
+        <div class="bottom-grid">
+          <section class="forecast-section card week-card" aria-labelledby="weekly-title">
+            <div class="section-title forecast-heading"><div><p class="eyebrow" data-i18n="lookingAhead">LOOKING AHEAD</p><h2 id="weekly-title" data-i18n="weeklyForecast">7-day forecast</h2></div><span class="section-aside" data-i18n="sevenDays">7 DAYS</span></div>
+            <div class="daily-list" id="daily-list"></div>
+          </section>
+          <section class="sun-card card" aria-labelledby="sun-title">
+            <div class="section-title"><div><p class="eyebrow" data-i18n="daylight">DAYLIGHT</p><h2 id="sun-title" data-i18n="sunTimes">Sunrise & sunset</h2></div><span class="sun-glyph" aria-hidden="true">☼</span></div>
+            <div class="sun-visual"><div class="sun-track"><div class="sun-horizon"></div><div class="sun-path"></div><span class="sun-ball"></span></div><div class="sun-labels"><div><span data-i18n="sunrise">Sunrise</span><strong id="sunrise-time">—</strong></div><div class="daylight-length"><span data-i18n="daylightLength">DAYLIGHT</span><strong id="daylight-duration">—</strong></div><div class="sunset-label"><span data-i18n="sunset">Sunset</span><strong id="sunset-time">—</strong></div></div></div>
+            <p class="sun-footnote" data-i18n="sunFootnote">Take a moment to enjoy the light.</p>
+          </section>
+        </div>
+      </section>
+      <footer class="footer"><span>Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></span><span class="footer-dot">✳</span><span data-i18n="footerTagline">A clearer view of your day.</span></footer>
+    </main>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
