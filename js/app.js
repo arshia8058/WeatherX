@@ -93,6 +93,7 @@ function clearNotice() {
 function updateStatusLabel() {
   if (!updatedAt) { $('#update-status').textContent = ''; return; }
   $('#update-status').textContent = `${t('updatedAt', relativeTime(updatedAt, language))} · ${t('automaticUpdate')}`;
+  $('#update-status').dir = 'auto';
 }
 function applyTheme() {
   document.documentElement.dataset.theme = theme;
@@ -111,6 +112,7 @@ function applyTranslations() {
     else element.textContent = value;
   });
   $$('[data-i18n-placeholder]').forEach((element) => { element.placeholder = t(element.dataset.i18nPlaceholder); });
+  $('#city-search').dir = 'auto';
   $('#city-search').setAttribute('aria-label', t('searchLabel'));
   $('#search-results').setAttribute('aria-label', t('searchResultsLabel'));
   $('#hourly-strip').setAttribute('aria-label', t('hourlyForecast'));
@@ -177,7 +179,7 @@ function renderShortcuts() {
   list.replaceChildren();
   POPULAR.forEach((place) => {
     const button = document.createElement('button');
-    button.type = 'button'; button.className = 'shortcut-chip';
+    button.type = 'button'; button.className = 'shortcut-chip'; button.dir = 'auto';
     const localName = t('locations')?.[place.id] || place.name;
     button.textContent = `${localName} · ${t('countries')?.[place.country_code.toLowerCase()] || place.country}`;
     button.setAttribute('aria-label', `${localName}, ${t('countries')?.[place.country_code.toLowerCase()] || place.country}`);
@@ -188,7 +190,7 @@ function renderShortcuts() {
     const label = document.createElement('span'); label.className = 'shortcut-label'; label.textContent = t('favorites');
     list.append(label);
     favorites.forEach((place) => {
-      const button = document.createElement('button'); button.type = 'button'; button.className = 'shortcut-chip favorite-chip';
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'shortcut-chip favorite-chip'; button.dir = 'auto';
       const star = document.createElement('span'); star.className = 'chip-star'; star.textContent = '★'; star.setAttribute('aria-hidden', 'true');
       const localizedCountry = countryName(place.country_code, language) || place.country;
       const name = document.createElement('span'); name.textContent = [place.name, localizedCountry].filter(Boolean).join(', ');

@@ -24,6 +24,7 @@ export function initSearch({ onSelect, getLanguage, t }) {
     results.replaceChildren();
     const row = document.createElement('div');
     row.className = className;
+    row.dir = 'auto';
     row.setAttribute('role', 'status');
     row.textContent = message;
     results.append(row);
@@ -44,9 +45,12 @@ export function initSearch({ onSelect, getLanguage, t }) {
       option.className = 'search-result';
       option.setAttribute('role', 'option');
       option.setAttribute('aria-selected', 'false');
+      option.dir = 'auto';
       const name = document.createElement('strong');
+      name.dir = 'auto';
       name.textContent = city.name;
       const details = document.createElement('span');
+      details.dir = 'auto';
       const region = [city.admin1, city.admin2, city.country || countryName(city.country_code, getLanguage())]
         .filter((item, itemIndex, all) => item && all.indexOf(item) === itemIndex);
       details.textContent = region.join(', ') || t('locationDetailsUnavailable');

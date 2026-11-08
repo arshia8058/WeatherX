@@ -1,3 +1,19 @@
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/vazirmatn-arabic-400-normal.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+200C-200E;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/vazirmatn-arabic-700-normal.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+200C-200E;
+}
 :root {
   color-scheme: light;
   font-family: 'DM Sans', sans-serif;
@@ -209,7 +225,7 @@ button:disabled { cursor: wait; opacity: .55; }
 .day-name small { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; font-weight: 400; }
 .day-icon { display: grid; place-items: center; width: 32px; height: 27px; }
 .day-icon .weather-svg { width: 29px; height: 26px; }
-.day-rain { color: var(--blue); font-size: 8px; white-space: nowrap; }
+.day-rain { color: var(--blue); font-size: 8px; line-height: 1.35; text-align: center; overflow-wrap: anywhere; }
 .day-temperatures { display: flex; justify-content: flex-end; gap: 9px; font-size: 10px; white-space: nowrap; }
 .day-temperatures .max { color: var(--heading); font-weight: 700; }
 .day-temperatures .min { color: var(--muted); }
@@ -252,13 +268,15 @@ button:disabled { cursor: wait; opacity: .55; }
 .footer a:hover { text-decoration: underline; }
 .footer-dot { color: var(--blue); font-size: 13px; }
 .update-status { color: var(--muted); }
-:root[lang='fa'] { font-family: 'Vazirmatn', 'DM Sans', sans-serif; }
+[dir='auto'] { unicode-bidi: plaintext; }
+.bidi-isolate { unicode-bidi: isolate; }
+:root[lang='fa'] { font-family: 'Vazirmatn', 'DM Sans', Tahoma, Arial, sans-serif; }
 :root[lang='fa'] .brand-name { letter-spacing: 0; }
 :root[lang='fa'] .intro-row h1 { letter-spacing: 0; line-height: 1.55; }
 :root[lang='fa'] .eyebrow, :root[lang='fa'] .section-aside { letter-spacing: 0; }
-:root[lang='fa'] .temperature { letter-spacing: -3px; }
+:root[lang='fa'] .temperature { letter-spacing: 0; }
 :root[lang='fa'] .live-status { letter-spacing: 0; }
-:root[lang='fa'] .search-wrap input { text-align: right; }
+:root[lang='fa'] .search-wrap input { text-align: start; }
 :root[lang='fa'] .search-result span { text-align: start; }
 @media (max-width: 1050px) {
   .app-shell { padding-inline: 32px; }
@@ -307,16 +325,17 @@ button:disabled { cursor: wait; opacity: .55; }
   .bottom-grid { margin-top: 13px; }
   .week-card { order: 1; }
   .side-stack { order: 2; grid-template-columns: 1fr; }
-  .day-row { grid-template-columns: 1fr 32px .85fr .86fr; gap: 6px; padding: 10px 0; }
+  .day-row { grid-template-columns: minmax(0, 1fr) 30px minmax(0, .9fr) auto; gap: 6px; padding: 10px 0; }
+  .day-name, .day-rain, .day-temperatures { min-width: 0; }
   .day-rain { font-size: 8px; }
   .sun-visual { margin-top: 17px; }
   .footer { padding-bottom: 23px; }
 }
 @media (max-width: 410px) {
   .app-shell { padding-inline: 13px; }
-  .topbar { gap: 8px; }
-  .topbar-right { gap: 5px; }
-  .brand { gap: 7px; }
+  .topbar { flex-wrap: wrap; gap: 9px; padding-block: 10px; }
+  .topbar-right { flex: 1 0 100%; width: 100%; justify-content: space-between; gap: 4px; }
+  .brand { flex: 1 1 auto; gap: 7px; }
   .brand-mark { width: 30px; height: 30px; border-radius: 10px; }
   .brand-name { font-size: 18px; }
   .icon-button { width: 31px; min-height: 32px; }
@@ -331,7 +350,7 @@ button:disabled { cursor: wait; opacity: .55; }
   .high-low { gap: 7px; font-size: 8px; }
   .hero-bottom { gap: 6px; font-size: 8px; }
   .date-lockup { gap: 5px; }
-  .day-row { grid-template-columns: .9fr 28px .76fr .83fr; gap: 4px; }
+  .day-row { grid-template-columns: minmax(0, 1fr) 28px minmax(0, .8fr) auto; gap: 4px; }
   .day-temperatures { gap: 6px; font-size: 9px; }
   .day-rain { font-size: 7px; }
 }

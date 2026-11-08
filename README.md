@@ -14,7 +14,7 @@ Open <http://localhost:8080>. Stop the server with `Ctrl+C`. Serve over HTTP rat
 
 - Current conditions and 24-hour / 7-day forecasts, temperature trend chart, wind details, and a live solar arc.
 - City autocomplete with cancellable requests, popular-city shortcuts, and saved favorites.
-- English and Persian (RTL) interface, Light and Dark themes, Celsius/Fahrenheit, and km/h, m/s, or mph wind units.
+- English and Persian (RTL) interface with bundled Vazirmatn Arabic-script fonts, isolated mixed-direction labels, Light and Dark themes, Celsius/Fahrenheit, and km/h, m/s, or mph wind units.
 - Optional geolocation, share action, 10-minute automatic refresh, and visible last-update time.
 - Ten-minute weather cache with an explicit stale-data notice when a refresh cannot reach the API; recent searches and air-quality readings are cached in memory. Geolocation forecasts are memory-only unless the user explicitly saves that location as a favorite.
 - Optional US AQI plus PM2.5, PM10, and ozone from Open-Meteo Air Quality. If that endpoint is unavailable, the rest of the weather dashboard continues to work.
@@ -28,7 +28,7 @@ With Node.js 20 or newer, run:
 npm test
 ```
 
-Tests use Node's built-in test runner; the site itself has no npm dependencies. Unit tests use mocked API responses to cover request construction, cache/offline fallback, malformed responses, cancellation, zero coordinates, air-quality data, and unit conversion.
+Tests use Node's built-in test runner; the site itself has no npm dependencies. Unit tests use mocked API responses to cover request construction, cache/offline fallback, malformed responses, cancellation, zero coordinates, air-quality data, and unit conversion. The bundled Vazirmatn font files are licensed under SIL OFL 1.1; see `assets/fonts/OFL.txt`.
 
 ## Deployment
 
