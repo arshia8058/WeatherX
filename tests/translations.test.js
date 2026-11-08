@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { translations } from '../js/translations.js';
 
 test('English and Persian translation catalogs cover the same UI keys', () => {
@@ -11,4 +12,13 @@ test('English and Persian translation catalogs cover the same UI keys', () => {
     }
   };
   compareKeys(translations.en, translations.fa);
+});
+
+test('every static HTML translation marker exists in both languages', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const keys = new Set([...html.matchAll(/data-i18n(?:-placeholder)?="([^"]+)"/g)].map((match) => match[1]));
+  for (const key of keys) {
+    assert.ok(key in translations.en, `missing English translation: ${key}`);
+    assert.ok(key in translations.fa, `missing Persian translation: ${key}`);
+  }
 });

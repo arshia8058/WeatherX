@@ -2,7 +2,7 @@ import { getAirQuality, getForecast } from './api.js';
 import { initSearch } from './search.js';
 import { renderAirQuality, renderWeather, updateLiveClock } from './weather.js';
 import { translations } from './translations.js';
-import { $, $$, apiClockMinutes, countryName, numeric, relativeTime } from './utils.js';
+import { $, $$, apiClockMinutes, countryName, daypartAt, numeric, relativeTime } from './utils.js';
 
 const KEYS = {
   language: 'weatherx-language', temperature: 'weatherx-unit', wind: 'weatherx-wind-unit',
@@ -56,12 +56,15 @@ favorites = favorites.filter(validCoordinates).slice(0, 12).map(cleanPlace);
 let activePlace = null;
 let pendingPlace = null;
 let retryPlace = null;
+let retryGeolocation = false;
 let weatherData = null;
 let airData = null;
+let airLoading = false;
 let updatedAt = null;
 let currentNotice = null;
 let liveState = 'live';
 let requestSequence = 0;
+let geoRequestSequence = 0;
 let requestController = null;
 
 const t = (key, ...args) => {
@@ -103,19 +106,9 @@ function updatePageHeading() {
     hour = Number(parts.find((part) => part.type === 'hour')?.value);
     minutes = Number(parts.find((part) => part.type === 'minute')?.value);
   } catch { /* Use the browser's local clock if the API timezone is unavailable. */ }
-  const now = hour * 60 + minutes;
   const sunrise = apiClockMinutes(weatherData?.daily?.sunrise?.[0]);
   const sunset = apiClockMinutes(weatherData?.daily?.sunset?.[0]);
-  let part;
-  if (sunrise !== null && sunset !== null) {
-    if (now < sunrise || now >= sunset) part = 'Night';
-    else if (hour < 11) part = 'Morning';
-    else if (hour < 17) part = 'Day';
-    else part = 'Evening';
-  } else if (hour < 5 || hour >= 21) part = 'Night';
-  else if (hour < 11) part = 'Morning';
-  else if (hour < 17) part = 'Day';
-  else part = 'Evening';
+  const part = daypartAt(hour, minutes, sunrise, sunset, weatherData?.current?.is_day);
   $('#page-heading').innerHTML = t(`heading${part}`);
 }
 
@@ -130,6 +123,8 @@ function applyTranslations() {
   document.documentElement.lang = language;
   document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
   document.title = language === 'fa' ? 'WeatherX — آب‌وهوا، با نگاهی تازه' : 'WeatherX — Weather, in focus';
+  document.querySelector('meta[name="description"]')?.setAttribute('content', t('metaDescription'));
+  $('.brand').setAttribute('aria-label', t('homeLabel'));
   $$('[data-i18n]').forEach((element) => {
     const value = t(element.dataset.i18n);
     if (element.dataset.i18n === 'heading') element.innerHTML = value;
@@ -158,8 +153,7 @@ function applyTranslations() {
   applyTheme();
   renderShortcuts();
   if (weatherData && activePlace) renderCurrentWeather();
-  if (airData) renderAirQuality(airData, { lang: language, t });
-  else renderAirQuality(null, { lang: language, t });
+  renderAirQuality(airData, { lang: language, t, loading: airLoading });
   if (loading) $('#loading').querySelector('span:last-child').textContent = t(weatherData ? 'updating' : 'loading');
   if (currentNotice) $('#notice').textContent = t(currentNotice.key);
   updateStatusLabel();
@@ -238,9 +232,16 @@ function errorMessage(error) {
   return 'weatherError';
 }
 
-async function loadPlace(place, { force = false, announce = false, savePlace = true } = {}) {
+async function loadPlace(place, { force = false, announce = false, savePlace = true, geoRequestId = null } = {}) {
+  if (geoRequestId === null) geoRequestSequence += 1;
+  else if (geoRequestId !== geoRequestSequence) return;
+  retryGeolocation = false;
   if (!validCoordinates(place)) { setNotice('weatherError'); return; }
   requestController?.abort();
+  if (airLoading) {
+    airLoading = false;
+    renderAirQuality(airData, { lang: language, t });
+  }
   const controller = new AbortController();
   requestController = controller;
   const requestId = ++requestSequence;
@@ -265,15 +266,18 @@ async function loadPlace(place, { force = false, announce = false, savePlace = t
     if (result.stale) { setLiveState('cachedStatus'); setNotice('staleForecast'); }
     else if (navigator.onLine === false) { setLiveState('offlineStatus'); setNotice('offlineError'); }
     else { setLiveState('live'); if (announce) setNotice('forecastUpdated', 'success'); }
-    renderAirQuality(null, { lang: language, t });
-    $('#aqi-description').textContent = t('loadingAir');
+    airData = null;
+    airLoading = true;
+    renderAirQuality(null, { lang: language, t, loading: true });
     const placeForAir = activePlace;
-    getAirQuality({ ...placeForAir, signal: controller.signal }).then((air) => {
+    getAirQuality({ ...placeForAir, targetTime: weatherData.current.time, signal: controller.signal }).then((air) => {
       if (requestId !== requestSequence) return;
+      airLoading = false;
       airData = air;
       renderAirQuality(airData, { lang: language, t });
     }).catch((error) => {
       if (error?.name === 'AbortError' || requestId !== requestSequence) return;
+      airLoading = false;
       airData = null;
       renderAirQuality(null, { lang: language, t });
     });
@@ -312,7 +316,10 @@ $('#refresh-button').addEventListener('click', () => {
   else if (pendingPlace) loadPlace(pendingPlace, { force: true });
   else loadPlace(DEFAULT_PLACE);
 });
-$('#retry-button').addEventListener('click', () => loadPlace(retryPlace || pendingPlace || activePlace || DEFAULT_PLACE, { force: true }));
+$('#retry-button').addEventListener('click', () => {
+  if (retryGeolocation) $('#location-button').click();
+  else loadPlace(retryPlace || pendingPlace || activePlace || DEFAULT_PLACE, { force: true });
+});
 $('#favorite-button').addEventListener('click', () => {
   if (!activePlace) return;
   const key = coordinateKey(activePlace);
@@ -333,24 +340,53 @@ $('#share-button').addEventListener('click', async () => {
 });
 
 $('#location-button').addEventListener('click', () => {
+  const geoRequestId = ++geoRequestSequence;
   clearNotice();
-  if (!('geolocation' in navigator)) { setNotice('geoUnsupported'); return; }
+  const nativeShell = window.Capacitor?.isNativePlatform?.() === true;
+  const nativeGeo = window.WeatherXGeolocation;
+  const geoProvider = nativeShell && typeof nativeGeo?.getCurrentPosition === 'function'
+    ? nativeGeo
+    : (typeof navigator.geolocation?.getCurrentPosition === 'function' ? navigator.geolocation : null);
+  if (!geoProvider) {
+    retryGeolocation = false;
+    if (!pendingPlace) setLoading(false);
+    setNotice('geoUnsupported');
+    return;
+  }
+  retryGeolocation = true;
   requestController?.abort();
+  if (airLoading) {
+    airLoading = false;
+    renderAirQuality(airData, { lang: language, t });
+  }
   requestSequence += 1;
   pendingPlace = null;
   setLoading(true);
   $('#loading').querySelector('span:last-child').textContent = t('geoLoading');
-  navigator.geolocation.getCurrentPosition((position) => {
+  const onSuccess = (position) => {
+    if (geoRequestId !== geoRequestSequence) return;
     const place = {
       name: '__geolocation__', latitude: position.coords.latitude, longitude: position.coords.longitude,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
-    loadPlace(place, { savePlace: false });
-  }, (error) => {
+    loadPlace(place, { savePlace: false, geoRequestId });
+  };
+  const onError = (error) => {
+    if (geoRequestId !== geoRequestSequence) return;
+    const code = String(error?.code ?? '');
+    const notice = code === '1' || code === 'OS-PLUG-GLOC-0003' ? 'geoDenied'
+      : ['2', 'OS-PLUG-GLOC-0002', 'OS-PLUG-GLOC-0007', 'OS-PLUG-GLOC-0009'].includes(code) ? 'geoUnavailable' : 'geoTimeout';
     setLoading(false);
-    setNotice(error.code === 1 ? 'geoDenied' : error.code === 2 ? 'geoUnavailable' : 'geoTimeout');
+    setNotice(notice);
     if (!weatherData) $('#empty-state').hidden = false;
-  }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 });
+  };
+  const options = { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 };
+  try {
+    if (geoProvider === nativeGeo) nativeGeo.getCurrentPosition(options).then(onSuccess, onError);
+    else geoProvider.getCurrentPosition(onSuccess, onError, options);
+  } catch {
+    onError({ code: 'OS-PLUG-GLOC-0002' });
+  }
 });
 
 window.addEventListener('offline', () => { setLiveState('offlineStatus'); if (weatherData) setNotice('offlineError'); });
@@ -363,7 +399,7 @@ loadPlace(initialPlace);
 
 window.setInterval(() => {
   if (weatherData && activePlace) {
-    updateLiveClock(weatherData.timezone, language, weatherData.daily.sunrise[0], weatherData.daily.sunset[0]);
+    updateLiveClock(weatherData.timezone, language, weatherData.daily.sunrise[0], weatherData.daily.sunset[0], weatherData.current.is_day);
     updateStatusLabel();
     updatePageHeading();
   }

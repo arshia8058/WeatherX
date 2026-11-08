@@ -45,10 +45,11 @@ export function windSpeed(value, unit, locale = 'en', digits = 0) {
 
 function parseApiTimestamp(value) {
   if (typeof value !== 'string') return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value);
   if (!match) return null;
   const [, year, month, day, hour, minute] = match.map((part) => Number(part));
-  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) return null;
+  const second = Number(match[6] || 0);
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) return null;
   const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
   return date.toISOString().slice(0, 16) === `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}` ? date : null;
 }
@@ -74,7 +75,9 @@ export function formatApiDate(value, locale = 'en', options = {}) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return '—';
   const [, year, month, day] = match.map((part) => Number(part));
+  if (month < 1 || month > 12 || day < 1 || day > 31) return '—';
   const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.toISOString().slice(0, 10) !== value) return '—';
   return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
     weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC', ...options,
   }).format(date);
@@ -108,17 +111,7 @@ export function uvDescription(value, t, locale = 'en') {
   else if (amount >= 8) label = 'uvVeryHigh';
   else if (amount >= 6) label = 'uvHigh';
   else if (amount >= 3) label = 'uvModerate';
-  return `${formatNumber(amount, { digits: 0, locale })} · ${t(label)}`;
-}
-
-export function uvCategory(value, t) {
-  const amount = numeric(value);
-  if (amount === null || amount < 0) return t('unavailable');
-  if (amount >= 11) return t('uvExtreme');
-  if (amount >= 8) return t('uvVeryHigh');
-  if (amount >= 6) return t('uvHigh');
-  if (amount >= 3) return t('uvModerate');
-  return t('uvLow');
+  return `${formatNumber(amount, { digits: 1, locale })} · ${t(label)}`;
 }
 
 export function relativeTime(timestamp, locale = 'en') {
@@ -142,6 +135,36 @@ export function localClock(timeZone, locale = 'en') {
 
 export function apiClockMinutes(value) {
   if (typeof value !== 'string') return null;
-  const match = /T(\d{2}):(\d{2})/.exec(value);
-  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day, hour, minute] = match.map((part) => Number(part));
+  const second = Number(match[6] || 0);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.toISOString().slice(0, 10) !== `${match[1]}-${match[2]}-${match[3]}`) return null;
+  return hour <= 23 && minute <= 59 && second <= 59 ? hour * 60 + minute : null;
+}
+
+export function daylightMinutes(sunrise, sunset) {
+  if (!Number.isInteger(sunrise) || sunrise < 0 || sunrise >= 1440 || !Number.isInteger(sunset) || sunset < 0 || sunset >= 1440) return null;
+  return (sunset - sunrise + 1440) % 1440;
+}
+
+export function daypartAt(hour, minute, sunrise = null, sunset = null, isDay = null) {
+  const validClock = Number.isInteger(hour) && hour >= 0 && hour <= 23 && Number.isInteger(minute) && minute >= 0 && minute <= 59;
+  const current = validClock ? hour * 60 + minute : null;
+  const daylight = daylightMinutes(sunrise, sunset);
+  if (daylight !== null && current !== null) {
+    if (daylight === 0) return isDay === 1 ? 'Daylight' : 'Night';
+    if ((current - sunrise + 1440) % 1440 >= daylight) return 'Night';
+    if (hour < 11) return 'Morning';
+    if (hour < 17) return 'Day';
+    return 'Evening';
+  }
+  if (isDay === 0) return 'Night';
+  if (isDay === 1) return 'Daylight';
+  if (!validClock) return 'Day';
+  if (hour < 5 || hour >= 21) return 'Night';
+  if (hour < 11) return 'Morning';
+  if (hour < 17) return 'Day';
+  return 'Evening';
 }
