@@ -2,7 +2,7 @@ import { getAirQuality, getForecast } from './api.js';
 import { initSearch } from './search.js';
 import { renderAirQuality, renderWeather, updateLiveClock } from './weather.js';
 import { translations } from './translations.js';
-import { $, $$, countryName, numeric, relativeTime } from './utils.js';
+import { $, $$, apiClockMinutes, countryName, numeric, relativeTime } from './utils.js';
 
 const KEYS = {
   language: 'weatherx-language', temperature: 'weatherx-unit', wind: 'weatherx-wind-unit',
@@ -95,6 +95,30 @@ function updateStatusLabel() {
   $('#update-status').textContent = `${t('updatedAt', relativeTime(updatedAt, language))} · ${t('automaticUpdate')}`;
   $('#update-status').dir = 'auto';
 }
+function updatePageHeading() {
+  const timeZone = weatherData?.timezone || activePlace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  let hour = new Date().getHours(), minutes = new Date().getMinutes();
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(Date.now());
+    hour = Number(parts.find((part) => part.type === 'hour')?.value);
+    minutes = Number(parts.find((part) => part.type === 'minute')?.value);
+  } catch { /* Use the browser's local clock if the API timezone is unavailable. */ }
+  const now = hour * 60 + minutes;
+  const sunrise = apiClockMinutes(weatherData?.daily?.sunrise?.[0]);
+  const sunset = apiClockMinutes(weatherData?.daily?.sunset?.[0]);
+  let part;
+  if (sunrise !== null && sunset !== null) {
+    if (now < sunrise || now >= sunset) part = 'Night';
+    else if (hour < 11) part = 'Morning';
+    else if (hour < 17) part = 'Day';
+    else part = 'Evening';
+  } else if (hour < 5 || hour >= 21) part = 'Night';
+  else if (hour < 11) part = 'Morning';
+  else if (hour < 17) part = 'Day';
+  else part = 'Evening';
+  $('#page-heading').innerHTML = t(`heading${part}`);
+}
+
 function applyTheme() {
   document.documentElement.dataset.theme = theme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0c1524' : '#f3f7fb');
@@ -139,6 +163,7 @@ function applyTranslations() {
   if (loading) $('#loading').querySelector('span:last-child').textContent = t(weatherData ? 'updating' : 'loading');
   if (currentNotice) $('#notice').textContent = t(currentNotice.key);
   updateStatusLabel();
+  updatePageHeading();
 }
 
 let loading = false;
@@ -164,6 +189,7 @@ function renderCurrentWeather() {
   $('#dashboard').hidden = false;
   updateFavoriteButton();
   updateStatusLabel();
+  updatePageHeading();
 }
 function updateFavoriteButton() {
   const button = $('#favorite-button');
@@ -339,6 +365,7 @@ window.setInterval(() => {
   if (weatherData && activePlace) {
     updateLiveClock(weatherData.timezone, language, weatherData.daily.sunrise[0], weatherData.daily.sunset[0]);
     updateStatusLabel();
+    updatePageHeading();
   }
 }, 30000);
 window.setInterval(() => {

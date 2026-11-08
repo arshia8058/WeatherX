@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { convertTemperature, convertWindSpeed, direction, formatApiDate, formatApiTime, numeric, temperature, uvDescription, windSpeed } from '../js/utils.js';
+import { convertTemperature, convertWindSpeed, direction, formatApiDate, formatApiHour, formatApiTime, numeric, temperature, uvDescription, windSpeed } from '../js/utils.js';
 
 const t = (key) => ({ dirN: 'N', dirNE: 'NE', dirE: 'E', dirSE: 'SE', dirS: 'S', dirSW: 'SW', dirW: 'W', dirNW: 'NW', uvLow: 'Low', uvModerate: 'Moderate', uvHigh: 'High', uvVeryHigh: 'Very high', uvExtreme: 'Extreme' })[key];
 
@@ -35,6 +35,11 @@ test('missing UV is rendered as unavailable rather than a false low value', () =
 test('formatters handle local Open-Meteo wall-clock timestamps and reject malformed values', () => {
   assert.notEqual(formatApiTime('2026-05-01T09:30', 'en'), '—');
   assert.equal(formatApiTime('bad', 'en'), '—');
+  assert.equal(formatApiTime('2026-13-01T99:99', 'en'), '—');
+  assert.equal(formatApiTime('2026-05-01T22:00', 'en'), '10:00 PM');
+  assert.equal(formatApiHour('2026-05-01T22:00', 'en'), '10 PM');
+  assert.equal(formatApiHour('2026-05-01T13:00', 'en'), '1 PM');
+  assert.equal(formatApiHour('invalid', 'en'), '—');
   assert.notEqual(formatApiDate('2026-05-01', 'fa'), '—');
   assert.equal(numeric(''), null);
   assert.equal(numeric(0), 0);
