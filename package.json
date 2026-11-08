@@ -1,0 +1,8 @@
+{
+  "name": "weatherx-static",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
