@@ -1,12 +1,16 @@
 name: Publish WeatherX Android preview release
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - android-release-version.txt
   workflow_dispatch:
     inputs:
       tag:
-        description: Git tag for this Android preview release
-        required: true
-        default: v1.0.0-android.1
+        description: Optional Git tag; leave empty to use android-release-version.txt
+        required: false
         type: string
 
 permissions:
@@ -54,13 +58,23 @@ jobs:
 
           Minimum supported Android version: Android 7.0 (API 24). Weather and air-quality data require an internet connection; location permission is requested only when the user taps the location button.
           EOF
+      - name: Select and validate release tag
+        id: release
+        env:
+          TAG_INPUT: ${{ inputs.tag }}
+        run: |
+          if [[ -n "$TAG_INPUT" ]]; then
+            TAG="$TAG_INPUT"
+          else
+            TAG="$(< android-release-version.txt)"
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+[.][0-9]+[.][0-9]+-android[.][0-9]+$ ]]; then
+            echo "Expected a tag such as v1.0.0-android.1; got: $TAG" >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
       - name: Publish GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "${{ inputs.tag }}"
-          release-assets/*.apk
-          --target "$GITHUB_SHA"
-          --title "WeatherX Android ${{ inputs.tag }}"
-          --notes-file release-notes.md
-          --prerelease
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: gh release create "$RELEASE_TAG" release-assets/*.apk --target "$GITHUB_SHA" --title "WeatherX Android $RELEASE_TAG" --notes-file release-notes.md --prerelease
