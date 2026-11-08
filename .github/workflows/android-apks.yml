@@ -38,7 +38,20 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
       - name: Run unit tests, lint, and assemble native APK
         working-directory: android
-        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
+        shell: bash
+        run: |
+          set +e
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug > "$RUNNER_TEMP/gradle-build.log" 2>&1
+          result=$?
+          if [[ $result -ne 0 ]]; then
+            tail -n 45 "$RUNNER_TEMP/gradle-build.log" | while IFS= read -r line; do
+              line=${line//'%'/'%25'}
+              line=${line//$'\r'/'%0D'}
+              echo "::error title=Gradle build output::$line"
+            done
+            exit "$result"
+          fi
+          tail -n 25 "$RUNNER_TEMP/gradle-build.log"
       - name: Upload native debug APK
         uses: actions/upload-artifact@v7
         with:
