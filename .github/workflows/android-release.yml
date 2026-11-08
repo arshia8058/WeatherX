@@ -1,0 +1,66 @@
+name: Publish WeatherX Android preview release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag for this Android preview release
+        required: true
+        default: v1.0.0-android.1
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Sync Capacitor Android project
+        run: npm run cap:sync
+      - name: Build APK variants
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+      - name: Prepare release assets and notes
+        run: |
+          mkdir -p release-assets
+          cp android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk release-assets/WeatherX-arm64-v8a-debug.apk
+          cp android/app/build/outputs/apk/debug/app-universal-debug.apk release-assets/WeatherX-universal-debug.apk
+          cat > release-notes.md <<'EOF'
+          WeatherX Android preview. Both packages are debug-signed and intended for testing and direct installation; they are not Play Store release builds.
+
+          - `WeatherX-arm64-v8a-debug.apk`: smaller package for 64-bit ARM devices.
+          - `WeatherX-universal-debug.apk`: package for ARM and x86 Android devices, including 32-bit ARM support.
+
+          Minimum supported Android version: Android 7.0 (API 24). Weather and air-quality data require an internet connection; location permission is requested only when the user taps the location button.
+          EOF
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${{ inputs.tag }}"
+          release-assets/*.apk
+          --target "$GITHUB_SHA"
+          --title "WeatherX Android ${{ inputs.tag }}"
+          --notes-file release-notes.md
+          --prerelease
