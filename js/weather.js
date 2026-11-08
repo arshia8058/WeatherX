@@ -1,4 +1,4 @@
-import { $, formatNumber, temperature, formatApiTime, formatApiDate, dayDiff, direction, uvDescription, windSpeed, numeric, localClock, apiClockMinutes } from './utils.js';
+import { $, formatNumber, temperature, formatApiTime, formatApiHour, formatApiDate, dayDiff, direction, uvDescription, windSpeed, numeric, localClock, apiClockMinutes } from './utils.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -13,8 +13,12 @@ function weatherKind(code) {
   return 'partly';
 }
 
-export function weatherIcon(code, { large = false } = {}) {
-  const type = weatherKind(code);
+export function weatherIcon(code, { large = false, precipitationProbability } = {}) {
+  let type = weatherKind(code);
+  const chance = numeric(precipitationProbability);
+  // A very low chance is shown with a neutral cloud, while the original forecast
+  // condition remains available to assistive technology and the chance stays visible.
+  if ((type === 'rain' || type === 'snow') && chance !== null && chance <= 10) type = 'cloud';
   const sun = '<circle cx="47" cy="36" r="13" fill="#FFD36E"/><g stroke="#FFD36E" stroke-width="3" stroke-linecap="round"><path d="M47 12v5M47 55v5M23 36h5m38 0h5M30 19l4 4m26 26 4 4m0-34-4 4m-26 26-4 4"/></g>';
   const cloud = '<path d="M30 61h34a14 14 0 0 0 0-28c-1 0-2 .1-3 .3a19 19 0 0 0-37 4A12 12 0 0 0 30 61Z" fill="#fff" stroke="#dce9fb" stroke-width="2"/>';
   let art = '';
@@ -86,8 +90,8 @@ function drawTemperatureChart(hourly, startIndex, unit, locale, t) {
   const first = valid[0], last = valid[valid.length - 1];
   const hi = valid.reduce((a, b) => a.value > b.value ? a : b);
   const lo = valid.reduce((a, b) => a.value < b.value ? a : b);
-  [[first, formatApiTime(hourly.time[startIndex], locale)], [hi, `${formatNumber(hi.value, { locale })}°`], [lo, `${formatNumber(lo.value, { locale })}°`], [last, formatApiTime(hourly.time[Math.min(startIndex + values.length - 1, hourly.time.length - 1)], locale)]].forEach(([point, label], index) => {
-    if (index === 0 || index === 3) {
+  [[first, formatApiHour(hourly.time[startIndex], locale)], [hi, `${formatNumber(hi.value, { locale })}°`], [lo, `${formatNumber(lo.value, { locale })}°`], [last, formatApiHour(hourly.time[Math.min(startIndex + values.length - 1, hourly.time.length - 1)], locale)]].forEach(([point, label], index) => {
+    if ((index === 0 || index === 3) && label !== '—') {
       const time = svgElement('text', { x: x(point.index), y: 139, 'text-anchor': index === 0 ? 'start' : 'end', class: 'chart-label', direction: 'ltr', 'unicode-bidi': 'plaintext' });
       time.textContent = label;
       svg.append(time);
@@ -171,7 +175,9 @@ export function renderWeather(data, place, { lang, unit, windUnit, t }) {
     const i = startIndex + offset;
     const item = document.createElement('article'); item.className = 'hour-item'; item.setAttribute('role', 'listitem');
     const timeLabel = document.createElement('span'); timeLabel.className = 'hour-time'; timeLabel.dir = 'auto'; timeLabel.textContent = offset === 0 ? t('now') : formatApiTime(time, locale);
-    const icon = document.createElement('span'); icon.className = 'hour-icon'; icon.innerHTML = weatherIcon(hourly.weather_code[i]);
+    const icon = document.createElement('span'); icon.className = 'hour-icon';
+    icon.setAttribute('role', 'img'); icon.setAttribute('aria-label', t('condition_', hourly.weather_code[i]));
+    icon.innerHTML = weatherIcon(hourly.weather_code[i], { precipitationProbability: hourly.precipitation_probability?.[i] });
     const temp = document.createElement('strong'); temp.className = 'hour-temp'; temp.dir = 'ltr'; temp.classList.add('bidi-isolate'); temp.textContent = temperature(hourly.temperature_2m[i], unit, locale);
     const rain = document.createElement('span'); rain.className = 'hour-rain'; rain.dir = 'ltr'; rain.classList.add('bidi-isolate'); rain.textContent = percent(hourly.precipitation_probability[i], locale);
     const wind = document.createElement('span'); wind.className = 'hour-wind'; wind.dir = 'auto';
@@ -190,8 +196,10 @@ export function renderWeather(data, place, { lang, unit, windUnit, t }) {
     const row = document.createElement('div'); row.className = 'day-row'; row.setAttribute('role', 'listitem');
     const dayName = document.createElement('div'); dayName.className = 'day-name'; dayName.dir = 'auto'; dayName.append(document.createTextNode(name));
     const dateLabel = document.createElement('small'); dateLabel.dir = 'auto'; dateLabel.textContent = formatApiDate(date, locale, { month: 'short', day: 'numeric' }); dayName.append(dateLabel);
-    const icon = document.createElement('span'); icon.className = 'day-icon'; icon.innerHTML = weatherIcon(daily.weather_code[i]);
-    const rain = document.createElement('span'); rain.className = 'day-rain'; rain.dir = 'auto'; rain.textContent = `${percent(daily.precipitation_probability_max[i], locale)} ${lang === 'fa' ? 'بارش' : 'rain'}`;
+    const icon = document.createElement('span'); icon.className = 'day-icon';
+    icon.setAttribute('role', 'img'); icon.setAttribute('aria-label', t('condition_', daily.weather_code[i]));
+    icon.innerHTML = weatherIcon(daily.weather_code[i], { precipitationProbability: daily.precipitation_probability_max?.[i] });
+    const rain = document.createElement('span'); rain.className = 'day-rain'; rain.dir = 'auto'; rain.textContent = `${percent(daily.precipitation_probability_max[i], locale)} ${t('rain')}`;
     const temps = document.createElement('div'); temps.className = 'day-temperatures';
     const high = document.createElement('span'); high.className = 'max'; high.dir = 'ltr'; high.classList.add('bidi-isolate'); high.textContent = temperature(daily.temperature_2m_max[i], unit, locale);
     const low = document.createElement('span'); low.className = 'min'; low.dir = 'ltr'; low.classList.add('bidi-isolate'); low.textContent = temperature(daily.temperature_2m_min[i], unit, locale);

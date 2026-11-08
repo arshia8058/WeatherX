@@ -43,14 +43,29 @@ export function windSpeed(value, unit, locale = 'en', digits = 0) {
   return `${formatNumber(converted, { digits, locale })} ${label}`;
 }
 
-export function formatApiTime(value, locale = 'en') {
-  if (typeof value !== 'string') return '—';
+function parseApiTimestamp(value) {
+  if (typeof value !== 'string') return null;
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
-  if (!match) return '—';
+  if (!match) return null;
   const [, year, month, day, hour, minute] = match.map((part) => Number(part));
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) return null;
   const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  return date.toISOString().slice(0, 16) === `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}` ? date : null;
+}
+
+export function formatApiTime(value, locale = 'en') {
+  const date = parseApiTimestamp(value);
+  if (!date) return '—';
   return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
     hour: 'numeric', minute: '2-digit', hour12: locale === 'en', timeZone: 'UTC',
+  }).format(date);
+}
+
+export function formatApiHour(value, locale = 'en') {
+  const date = parseApiTimestamp(value);
+  if (!date) return '—';
+  return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
+    hour: 'numeric', ...(locale === 'en' ? { hour12: true } : { hourCycle: 'h23' }), timeZone: 'UTC',
   }).format(date);
 }
 
