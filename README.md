@@ -38,7 +38,7 @@ The outputs are:
 - `android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` — smaller APK for 64-bit ARM Android devices.
 - `android/app/build/outputs/apk/debug/app-universal-debug.apk` — one APK for ARM and x86 Android devices; larger because it includes multiple ABIs.
 
-These are debug-signed APKs for testing and direct installation, not Play Store release packages. The `Build WeatherX Android APKs` GitHub Actions workflow also uploads both APKs as a downloadable artifact when manually run or when a pull request targets `main`. The application id is `com.arshia8058.weatherx`.
+These are debug-signed APKs for testing and direct installation, not Play Store release packages. The `Build WeatherX Android APKs` GitHub Actions workflow also uploads both APKs as a downloadable artifact when manually run or when a pull request targets `main`. The `Publish WeatherX Android preview release` workflow publishes a GitHub prerelease; changing `android-release-version.txt` through a PR to `main` triggers the next tagged preview. The application id is `com.arshia8058.weatherx`.
 
 ## Tests
 
