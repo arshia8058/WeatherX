@@ -36,9 +36,12 @@ function atIndex(hourly, time) {
   return hourly.time.findIndex((item) => typeof item === 'string' && item.slice(0, 13) === hourKey);
 }
 
-function setValue(id, value) {
+function setValue(id, value, direction = 'auto') {
   const element = $(`#${id}`);
-  if (element) element.textContent = value;
+  if (element) {
+    element.textContent = value;
+    element.dir = direction;
+  }
 }
 function percent(value, locale) {
   return numeric(value) === null ? '—' : `${formatNumber(value, { locale })}%`;
@@ -59,7 +62,7 @@ function drawTemperatureChart(hourly, startIndex, unit, locale, t) {
   const values = hourly.temperature_2m.slice(startIndex, startIndex + 24).map((value) => numeric(value));
   const valid = values.map((value, index) => value === null ? null : ({ index, value: unit === 'f' ? value * 9 / 5 + 32 : value })).filter(Boolean);
   if (valid.length < 2) {
-    const empty = svgElement('text', { x: 450, y: 75, 'text-anchor': 'middle', class: 'chart-label' });
+    const empty = svgElement('text', { x: 450, y: 75, 'text-anchor': 'middle', class: 'chart-label', direction: locale === 'fa' ? 'rtl' : 'ltr', 'unicode-bidi': 'plaintext' });
     empty.textContent = t('chartUnavailable');
     svg.append(empty);
     return;
@@ -85,17 +88,17 @@ function drawTemperatureChart(hourly, startIndex, unit, locale, t) {
   const lo = valid.reduce((a, b) => a.value < b.value ? a : b);
   [[first, formatApiTime(hourly.time[startIndex], locale)], [hi, `${formatNumber(hi.value, { locale })}°`], [lo, `${formatNumber(lo.value, { locale })}°`], [last, formatApiTime(hourly.time[Math.min(startIndex + values.length - 1, hourly.time.length - 1)], locale)]].forEach(([point, label], index) => {
     if (index === 0 || index === 3) {
-      const time = svgElement('text', { x: x(point.index), y: 139, 'text-anchor': index === 0 ? 'start' : 'end', class: 'chart-label' });
+      const time = svgElement('text', { x: x(point.index), y: 139, 'text-anchor': index === 0 ? 'start' : 'end', class: 'chart-label', direction: 'ltr', 'unicode-bidi': 'plaintext' });
       time.textContent = label;
       svg.append(time);
     }
   });
   svg.append(svgElement('circle', { cx: x(hi.index), cy: y(hi.value), r: 3.5, class: 'chart-point' }));
   svg.append(svgElement('circle', { cx: x(lo.index), cy: y(lo.value), r: 3.5, class: 'chart-point' }));
-  const high = svgElement('text', { x: Math.min(x(hi.index) + 8, right - 35), y: Math.max(y(hi.value) - 8, 13), class: 'chart-label' });
+  const high = svgElement('text', { x: Math.min(x(hi.index) + 8, right - 35), y: Math.max(y(hi.value) - 8, 13), class: 'chart-label', direction: 'ltr', 'unicode-bidi': 'plaintext' });
   high.textContent = `${formatNumber(hi.value, { locale })}°`;
   svg.append(high);
-  const low = svgElement('text', { x: Math.min(x(lo.index) + 8, right - 35), y: Math.min(y(lo.value) + 15, bottom - 2), class: 'chart-label' });
+  const low = svgElement('text', { x: Math.min(x(lo.index) + 8, right - 35), y: Math.min(y(lo.value) + 15, bottom - 2), class: 'chart-label', direction: 'ltr', 'unicode-bidi': 'plaintext' });
   low.textContent = `${formatNumber(lo.value, { locale })}°`;
   svg.append(low);
 }
@@ -126,8 +129,8 @@ function updateSunPosition(sunrise, sunset, timeZone, locale) {
 
 export function updateLiveClock(timeZone, locale, sunrise, sunset) {
   const clock = localClock(timeZone, locale);
-  setValue('local-date', clock.date);
-  setValue('local-time', clock.time);
+  setValue('local-date', clock.date, 'auto');
+  setValue('local-time', clock.time, 'auto');
   updateSunPosition(sunrise, sunset, timeZone, locale);
 }
 
@@ -138,20 +141,24 @@ export function renderWeather(data, place, { lang, unit, windUnit, t }) {
   const locale = lang;
 
   $('#city-name').textContent = place.name || t('myLocation');
+  $('#city-name').dir = 'auto';
   $('#city-region').textContent = [place.admin1, place.admin2, place.country].filter((item, i, all) => item && all.indexOf(item) === i && item !== place.name).join(', ') || place.timezone || '';
+  $('#city-region').dir = 'auto';
+  $('#current-temp').dir = 'ltr';
+  $('#current-temp').classList.add('bidi-isolate');
   $('#current-temp').replaceChildren(document.createTextNode(temperature(current.temperature_2m, unit, locale).replace(/°$/, '')));
   const degree = document.createElement('span'); degree.textContent = '°'; $('#current-temp').append(degree);
   setValue('current-condition', t('condition_', current.weather_code));
   setValue('feels-like', `${t('feelsLike')} ${temperature(current.apparent_temperature, unit, locale)}`);
   $('#hero-icon').innerHTML = weatherIcon(current.weather_code, { large: true });
-  setValue('high-temp', temperature(daily.temperature_2m_max[0], unit, locale));
-  setValue('low-temp', temperature(daily.temperature_2m_min[0], unit, locale));
-  setValue('metric-humidity', percent(current.relative_humidity_2m, locale));
+  setValue('high-temp', temperature(daily.temperature_2m_max[0], unit, locale), 'ltr');
+  setValue('low-temp', temperature(daily.temperature_2m_min[0], unit, locale), 'ltr');
+  setValue('metric-humidity', percent(current.relative_humidity_2m, locale), 'ltr');
   setValue('metric-wind', windSpeed(current.wind_speed_10m, windUnit, locale));
   setValue('metric-direction', direction(current.wind_direction_10m, t, locale));
   setValue('metric-pressure', quantity(current.surface_pressure, lang === 'fa' ? 'هکتوپاسکال' : 'hPa', locale));
   setValue('metric-precipitation', quantity(current.precipitation, lang === 'fa' ? 'میلی‌متر' : 'mm', locale, 1));
-  setValue('metric-rain', percent(near('precipitation_probability'), locale));
+  setValue('metric-rain', percent(near('precipitation_probability'), locale), 'ltr');
   setValue('metric-uv', uvDescription(near('uv_index'), t, locale));
   const visibility = near('visibility');
   setValue('metric-visibility', numeric(visibility) === null ? '—' : quantity(visibility / 1000, lang === 'fa' ? 'کیلومتر' : 'km', locale, 1));
@@ -163,11 +170,11 @@ export function renderWeather(data, place, { lang, unit, windUnit, t }) {
   hourly.time.slice(startIndex, startIndex + 24).forEach((time, offset) => {
     const i = startIndex + offset;
     const item = document.createElement('article'); item.className = 'hour-item'; item.setAttribute('role', 'listitem');
-    const timeLabel = document.createElement('span'); timeLabel.className = 'hour-time'; timeLabel.textContent = offset === 0 ? t('now') : formatApiTime(time, locale);
+    const timeLabel = document.createElement('span'); timeLabel.className = 'hour-time'; timeLabel.dir = 'auto'; timeLabel.textContent = offset === 0 ? t('now') : formatApiTime(time, locale);
     const icon = document.createElement('span'); icon.className = 'hour-icon'; icon.innerHTML = weatherIcon(hourly.weather_code[i]);
-    const temp = document.createElement('strong'); temp.className = 'hour-temp'; temp.textContent = temperature(hourly.temperature_2m[i], unit, locale);
-    const rain = document.createElement('span'); rain.className = 'hour-rain'; rain.textContent = percent(hourly.precipitation_probability[i], locale);
-    const wind = document.createElement('span'); wind.className = 'hour-wind';
+    const temp = document.createElement('strong'); temp.className = 'hour-temp'; temp.dir = 'ltr'; temp.classList.add('bidi-isolate'); temp.textContent = temperature(hourly.temperature_2m[i], unit, locale);
+    const rain = document.createElement('span'); rain.className = 'hour-rain'; rain.dir = 'ltr'; rain.classList.add('bidi-isolate'); rain.textContent = percent(hourly.precipitation_probability[i], locale);
+    const wind = document.createElement('span'); wind.className = 'hour-wind'; wind.dir = 'auto';
     const speed = windSpeed(hourly.wind_speed_10m?.[i], windUnit, locale);
     const compass = direction(hourly.wind_direction_10m?.[i], t, locale).split(' ')[0];
     wind.textContent = `${compass === '—' ? '' : `${compass} `}${speed}`;
@@ -181,19 +188,19 @@ export function renderWeather(data, place, { lang, unit, windUnit, t }) {
     const difference = dayDiff(today, date);
     const name = difference === 0 ? t('today') : difference === 1 ? t('tomorrow') : formatApiDate(date, locale, { weekday: 'short' });
     const row = document.createElement('div'); row.className = 'day-row'; row.setAttribute('role', 'listitem');
-    const dayName = document.createElement('div'); dayName.className = 'day-name'; dayName.append(document.createTextNode(name));
-    const dateLabel = document.createElement('small'); dateLabel.textContent = formatApiDate(date, locale, { month: 'short', day: 'numeric' }); dayName.append(dateLabel);
+    const dayName = document.createElement('div'); dayName.className = 'day-name'; dayName.dir = 'auto'; dayName.append(document.createTextNode(name));
+    const dateLabel = document.createElement('small'); dateLabel.dir = 'auto'; dateLabel.textContent = formatApiDate(date, locale, { month: 'short', day: 'numeric' }); dayName.append(dateLabel);
     const icon = document.createElement('span'); icon.className = 'day-icon'; icon.innerHTML = weatherIcon(daily.weather_code[i]);
-    const rain = document.createElement('span'); rain.className = 'day-rain'; rain.textContent = `${percent(daily.precipitation_probability_max[i], locale)} ${lang === 'fa' ? 'بارش' : 'rain'}`;
+    const rain = document.createElement('span'); rain.className = 'day-rain'; rain.dir = 'auto'; rain.textContent = `${percent(daily.precipitation_probability_max[i], locale)} ${lang === 'fa' ? 'بارش' : 'rain'}`;
     const temps = document.createElement('div'); temps.className = 'day-temperatures';
-    const high = document.createElement('span'); high.className = 'max'; high.textContent = temperature(daily.temperature_2m_max[i], unit, locale);
-    const low = document.createElement('span'); low.className = 'min'; low.textContent = temperature(daily.temperature_2m_min[i], unit, locale);
+    const high = document.createElement('span'); high.className = 'max'; high.dir = 'ltr'; high.classList.add('bidi-isolate'); high.textContent = temperature(daily.temperature_2m_max[i], unit, locale);
+    const low = document.createElement('span'); low.className = 'min'; low.dir = 'ltr'; low.classList.add('bidi-isolate'); low.textContent = temperature(daily.temperature_2m_min[i], unit, locale);
     temps.append(high, low); row.append(dayName, icon, rain, temps); days.append(row);
   });
 
   const sunrise = daily.sunrise[0], sunset = daily.sunset[0];
-  setValue('sunrise-time', formatApiTime(sunrise, locale));
-  setValue('sunset-time', formatApiTime(sunset, locale));
+  setValue('sunrise-time', formatApiTime(sunrise, locale), 'ltr');
+  setValue('sunset-time', formatApiTime(sunset, locale), 'ltr');
   const sunriseMinutes = apiClockMinutes(sunrise), sunsetMinutes = apiClockMinutes(sunset);
   const dayLength = sunriseMinutes === null || sunsetMinutes === null ? null : Math.max(0, sunsetMinutes - sunriseMinutes);
   setValue('daylight-duration', dayLength === null ? '—' : `${formatNumber(Math.floor(dayLength / 60), { locale })}${lang === 'fa' ? 'س' : 'h'} ${formatNumber(dayLength % 60, { locale })}${lang === 'fa' ? 'د' : 'm'}`);
@@ -204,6 +211,8 @@ export function renderAirQuality(data, { lang, t }) {
   const value = numeric(data?.us_aqi);
   const badge = $('#aqi-value');
   const meter = $('#aqi-meter-fill');
+  badge.dir = 'ltr';
+  badge.classList.add('bidi-isolate');
   if (value === null || value < 0) {
     badge.textContent = '—'; badge.removeAttribute('data-level'); meter.style.width = '0%';
     setValue('aqi-description', t('airQualityUnavailable'));
@@ -213,9 +222,9 @@ export function renderAirQuality(data, { lang, t }) {
   const levels = value <= 50 ? ['good', 'aqiGood'] : value <= 100 ? ['moderate', 'aqiModerate'] : value <= 150 ? ['sensitive', 'aqiSensitive'] : value <= 200 ? ['unhealthy', 'aqiUnhealthy'] : value <= 300 ? ['very-unhealthy', 'aqiVeryUnhealthy'] : ['hazardous', 'aqiHazardous'];
   badge.dataset.level = levels[0];
   badge.textContent = formatNumber(value, { locale: lang });
-  setValue('aqi-description', `${t(levels[1])} · ${t('aqi')}`);
+  setValue('aqi-description', `${t(levels[1])} · ${t('aqi')}`, 'auto');
   meter.style.width = `${Math.min(100, value / 300 * 100)}%`;
-  setValue('aqi-pm25', quantity(data.pm2_5, 'µg/m³', lang, 1));
-  setValue('aqi-pm10', quantity(data.pm10, 'µg/m³', lang, 1));
-  setValue('aqi-ozone', quantity(data.ozone, 'µg/m³', lang, 1));
+  setValue('aqi-pm25', quantity(data.pm2_5, 'µg/m³', lang, 1), 'ltr');
+  setValue('aqi-pm10', quantity(data.pm10, 'µg/m³', lang, 1), 'ltr');
+  setValue('aqi-ozone', quantity(data.ozone, 'µg/m³', lang, 1), 'ltr');
 }
