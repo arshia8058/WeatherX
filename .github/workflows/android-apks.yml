@@ -1,4 +1,4 @@
-name: Build WeatherX Android APKs
+name: Native Android CI
 
 on:
   workflow_dispatch:
@@ -7,59 +7,91 @@ on:
       - main
     paths:
       - '.github/workflows/android-apks.yml'
+      - '.github/workflows/android-release.yml'
+      - 'android-release-version.txt'
       - 'android/**'
-      - 'assets/**'
-      - 'capacitor.config.json'
-      - 'css/**'
-      - 'index.html'
-      - 'js/**'
-      - 'native/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'scripts/**'
-      - 'tests/**'
+      - 'README.md'
 
 permissions:
   contents: read
 
+concurrency:
+  group: native-android-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-apks:
+  build-and-unit-test:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out source
         uses: actions/checkout@v7
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - name: Set up Java
+      - name: Set up JDK 21
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
+          cache-dependency-path: android/**/*.gradle*
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
-      - name: Install dependencies
-        run: npm ci
-      - name: Run tests
-        run: npm test
-      - name: Sync Capacitor Android project
-        run: npm run cap:sync
-      - name: Build APK variants
+      - name: Run unit tests, lint, and assemble native APK
         working-directory: android
-        run: ./gradlew --no-daemon assembleDebug
-      - name: Collect ARM64 and universal APKs
+        shell: bash
         run: |
-          mkdir -p artifacts
-          cp android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk artifacts/WeatherX-arm64-v8a-debug.apk
-          cp android/app/build/outputs/apk/debug/app-universal-debug.apk artifacts/WeatherX-universal-debug.apk
-      - name: Upload APKs
+          set +e
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug > "$RUNNER_TEMP/gradle-build.log" 2>&1
+          result=$?
+          if [[ $result -ne 0 ]]; then
+            summary=$(tail -n 55 "$RUNNER_TEMP/gradle-build.log")
+            summary=${summary//'%'/'%25'}
+            summary=${summary//$'\r'/'%0D'}
+            summary=${summary//$'\n'/'%0A'}
+            echo "::error title=Gradle build failure::$summary"
+            exit "$result"
+          fi
+          tail -n 25 "$RUNNER_TEMP/gradle-build.log"
+      - name: Upload native debug APK
         uses: actions/upload-artifact@v7
         with:
-          name: WeatherX-Android-APKs
-          path: artifacts/*.apk
+          name: WeatherX-native-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+
+  emulator-smoke-test:
+    runs-on: macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: android/**/*.gradle*
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install and launch WeatherX in an Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          working-directory: android
+          script: |
+            set +e
+            ./gradlew --no-daemon connectedDebugAndroidTest > "$RUNNER_TEMP/emulator-test.log" 2>&1
+            result=$?
+            if [ "$result" -ne 0 ]; then
+              summary=$(tail -n 55 "$RUNNER_TEMP/emulator-test.log" | sed 's/%/%25/g; s/\r/%0D/g' | tr '\n' ' ')
+              echo "::error title=Android emulator test failure::$summary"
+              exit "$result"
+            fi
+            tail -n 20 "$RUNNER_TEMP/emulator-test.log"
