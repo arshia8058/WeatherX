@@ -1,0 +1,8 @@
+{
+  "appId": "com.arshia8058.weatherx",
+  "appName": "WeatherX",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}

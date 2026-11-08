@@ -12,3 +12,9 @@ test('low-probability rain and snow use a neutral cloud visual without changing 
   assert.match(weatherIcon(71, { precipitationProbability: 35 }), /cx="36" cy="72"/);
   assert.match(weatherIcon(61), /m37 68/); // Missing probability keeps the API condition icon.
 });
+
+test('thunderstorm codes use a lightning icon even when rain probability is low', () => {
+  const storm = weatherIcon(95, { precipitationProbability: 5 });
+  assert.match(storm, /ffd36e/);
+  assert.doesNotMatch(storm, /m37 68/);
+});

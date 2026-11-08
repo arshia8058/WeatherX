@@ -19,6 +19,7 @@ test('forecast accepts zero coordinates and requests only selected forecast fiel
   assert.equal(requestUrl.searchParams.get('timezone'), 'auto');
   assert.equal(requestUrl.searchParams.get('forecast_hours'), '24');
   assert.equal(requestUrl.searchParams.get('forecast_days'), '7');
+  assert.match(requestUrl.searchParams.get('current'), /is_day/);
   assert.match(requestUrl.searchParams.get('hourly'), /visibility/);
   assert.match(requestUrl.searchParams.get('hourly'), /uv_index/);
   assert.equal(requestUrl.searchParams.get('wind_speed_unit'), 'kmh');
@@ -41,6 +42,18 @@ test('forecast cache avoids duplicate requests and clearly marks stale offline d
 test('invalid coordinates and malformed forecast responses are rejected', async () => {
   await assert.rejects(getForecast({ latitude: 91, longitude: 0 }), (error) => error instanceof ApiError && error.kind === 'invalid-request');
   assert.throws(() => validateForecast({ current: { time: 'now', temperature_2m: 1, weather_code: 0 } }), (error) => error.kind === 'invalid-data');
+  const invalidTime = forecastFixture();
+  invalidTime.current.time = '2026-02-31T00:00';
+  assert.throws(() => validateForecast(invalidTime), (error) => error.kind === 'invalid-data');
+  const invalidProbability = forecastFixture();
+  invalidProbability.hourly.precipitation_probability[3] = 140;
+  assert.throws(() => validateForecast(invalidProbability), (error) => error.kind === 'invalid-data');
+  const wrongHour = forecastFixture();
+  wrongHour.current.time = '2026-05-02T00:00';
+  assert.throws(() => validateForecast(wrongHour), (error) => error.kind === 'invalid-data');
+  const invalidDayFlag = forecastFixture();
+  invalidDayFlag.current.is_day = 2;
+  assert.throws(() => validateForecast(invalidDayFlag), (error) => error.kind === 'invalid-data');
 });
 
 test('HTTP errors retain status and categorize rate/server errors', async () => {
@@ -56,6 +69,12 @@ test('an aborted weather request remains an abort, not a stale-cache success', a
   const controller = new AbortController();
   controller.abort();
   await assert.rejects(getForecast({ latitude: 12, longitude: 14, signal: controller.signal }), (error) => error.name === 'AbortError');
+});
+
+test('city search rejects invalid language and malformed successful payloads', async () => {
+  await assert.rejects(searchCities('Paris', 'xx'), (error) => error.kind === 'invalid-request');
+  globalThis.fetch = async () => jsonResponse(null);
+  await assert.rejects(searchCities('Paris', 'en'), (error) => error instanceof ApiError && error.kind === 'invalid-data');
 });
 
 test('city search accepts zero coordinates, removes duplicate results, and caches repeats', async () => {
@@ -81,15 +100,34 @@ test('city search forwards cancellation so obsolete suggestions can be aborted',
   await assert.rejects(request, (error) => error.name === 'AbortError');
 });
 
-test('air-quality API values are returned for the forecast hour', async () => {
+test('air-quality readings align with the forecast hour and refresh the cache when that hour changes', async () => {
+  let calls = 0;
   globalThis.fetch = async (url) => {
+    calls += 1;
     const parsed = new URL(url);
     assert.equal(parsed.hostname, 'air-quality-api.open-meteo.com');
-    return jsonResponse({ hourly: { time: ['2026-05-01T00:00'], us_aqi: [24], pm2_5: [3.1], pm10: [5], ozone: [49] } });
+    assert.equal(parsed.searchParams.get('forecast_hours'), '24');
+    return jsonResponse({ hourly: {
+      time: ['2026-05-01T00:00', '2026-05-01T01:00'], us_aqi: [18, 24],
+      pm2_5: [2.1, 3.1], pm10: [4, 5], ozone: [39, 49],
+    } });
   };
-  const air = await getAirQuality({ latitude: 34, longitude: 35 });
-  assert.equal(air.us_aqi, 24);
-  assert.equal(air.pm2_5, 3.1);
+  const firstHour = await getAirQuality({ latitude: 34, longitude: 35, targetTime: '2026-05-01T00:00' });
+  assert.equal(firstHour.us_aqi, 18);
+  const nextHour = await getAirQuality({ latitude: 34, longitude: 35, targetTime: '2026-05-01T01:00' });
+  assert.equal(nextHour.us_aqi, 24);
+  assert.equal(nextHour.pm2_5, 3.1);
+  assert.equal(nextHour.time, '2026-05-01T01:00');
+  const nearestHour = await getAirQuality({ latitude: 34, longitude: 35, targetTime: '2026-05-01T02:30' });
+  assert.equal(nearestHour.time, '2026-05-01T01:00');
+  assert.equal(calls, 3);
+  globalThis.fetch = async () => jsonResponse({ hourly: {
+    time: ['2026-05-01T00:00', '2026-05-01T01:00', '2026-05-01T02:00'],
+    us_aqi: [17, null, 30], pm2_5: [1, 2, 3], pm10: [4, 5, 6], ozone: [7, 8, 9],
+  } });
+  const availableReading = await getAirQuality({ latitude: 35, longitude: 36, targetTime: '2026-05-01T01:00' });
+  assert.equal(availableReading.us_aqi, 17);
+  assert.equal(availableReading.time, '2026-05-01T00:00');
 });
 
 test('geolocation weather cache remains memory-only unless the user saves it', async () => {

@@ -15,7 +15,10 @@ test('Persian font subsets are bundled as valid WOFF2 assets', async () => {
   assert.match(css, /unicode-bidi: plaintext/);
 });
 
-test('GitHub Pages artifact includes the locally hosted font assets', async () => {
+test('GitHub Pages build includes the locally hosted font assets', async () => {
   const workflow = await text('.github/workflows/pages.yml');
-  assert.match(workflow, /cp -R css js assets _site\//);
+  const builder = await text('scripts/build-web.mjs');
+  assert.match(workflow, /run: npm run build:web/);
+  assert.match(workflow, /path: www/);
+  assert.match(builder, /'assets'/);
 });

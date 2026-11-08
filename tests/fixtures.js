@@ -8,7 +8,7 @@ export function forecastFixture() {
     latitude: 0, longitude: 0, timezone: 'UTC', timezone_abbreviation: 'UTC', utc_offset_seconds: 0,
     current: {
       time: hours[0], temperature_2m: 12.5, relative_humidity_2m: 55, apparent_temperature: 11.2,
-      precipitation: 0, weather_code: 1, wind_speed_10m: 14.4, wind_direction_10m: 0, surface_pressure: 1012.3,
+      precipitation: 0, weather_code: 1, is_day: 1, wind_speed_10m: 14.4, wind_direction_10m: 0, surface_pressure: 1012.3,
     },
     hourly: {
       time: hours, temperature_2m: series(12), precipitation_probability: series(15), weather_code: series(1),

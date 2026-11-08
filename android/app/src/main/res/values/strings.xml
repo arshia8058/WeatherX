@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WeatherX</string>
+    <string name="title_activity_main">WeatherX</string>
+    <string name="package_name">com.arshia8058.weatherx</string>
+    <string name="custom_url_scheme">com.arshia8058.weatherx</string>
+</resources>
